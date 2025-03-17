@@ -1,7 +1,7 @@
 import { atom } from "jotai";
 
 export const likesAtom = atom<number>(0);
-export const refreshLikesAtom = atom(null, async (get, set) => {
+export const refreshLikesAtom = atom(null, async (_get, set) => {
   try {
     const response = await fetch("http://localhost:3000/likes");
     const count = await response.json();
