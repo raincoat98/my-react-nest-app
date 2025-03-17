@@ -41,11 +41,25 @@ jobs:
           fi
           docker-compose --version
 
-      # 3. Set up Docker Buildx
+      # 3. Debug Port Usage (Optional)
+      - name: Debug Port Usage
+        run: |
+          echo "Checking if port 5436 is in use..."
+          sudo lsof -i :5436 || echo "Port 5436 is free"
+
+      # 4. Clean Up Docker Environment (Optional)
+      - name: Clean Up Docker Environment Before Build
+        run: |
+          docker-compose down || true
+          docker system prune -f || true
+          docker volume prune -f || true
+          docker network prune -f || true
+
+      # 5. Set up Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      # 4. Cache Docker layers
+      # 6. Cache Docker layers
       - name: Cache Docker layers
         uses: actions/cache@v3
         with:
@@ -54,38 +68,36 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-
 
-      # 5. Build Backend Docker image
+      # 7. Build Backend Docker image
       - name: Build Backend Docker image
         run: |
           docker-compose -f docker-compose.yml build backend
 
-      # 6. Build Frontend Docker image
+      # 8. Build Frontend Docker image
       - name: Build Frontend Docker image
         run: |
           docker-compose -f docker-compose.yml build frontend
 
-      # 7. Run Tests (Backend)
+      # 9. Run Tests (Backend)
       - name: Run Backend Tests
         run: |
-          docker-compose -f docker-compose.yml up -d backend
-          docker-compose -f docker-compose.yml exec backend npm run test
+          docker-compose up --build -d backend postgres &&
+          docker-compose exec backend npm run test
 
-      # 8. Run Tests (Frontend)
+      # 10. Run Tests (Frontend)
       - name: Run Frontend Tests
         run: |
-          docker-compose -f docker-compose.yml up -d frontend
-          docker-compose -f docker-compose.yml exec frontend npm run test
+          docker-compose up --build -d frontend &&
+          docker-compose exec frontend npm run test
 
-      # 9. Copy Files for Deployment (Optional Step)
+      # 11. Copy Files for Deployment (Optional Step)
       - name: Copy Files for Deployment Preparation
         run: |
-          if [ ! -d "dist" ]; then
-            mkdir dist/
-          fi
-          cp -r backend/dist/* dist/
+          if [ ! -d "dist" ]; then mkdir dist/; fi &&
+          cp -r backend/dist/* dist/ &&
           cp -r frontend/build/* dist/
 
-      # 10. Deploy to Synology (using rsync)
+      # 12. Deploy to Synology (using rsync)
       - name: Deploy to Synology (using rsync)
         env:
           SYNOLOGY_HOST: ${{ secrets.SYNOLOGY_HOST }}
@@ -96,21 +108,23 @@ jobs:
         run: |
           # Install necessary tools if not present
           if ! command -v rsync &> /dev/null || ! command -v sshpass &> /dev/null; then
-            sudo apt-get update && sudo apt-get install -y sshpass rsync
+            sudo apt-get update && sudo apt-get install -y sshpass rsync;
           fi
 
           # Add the host to known hosts to prevent SSH prompts
-          mkdir -p ~/.ssh
-          if ! grep -q "$SYNOLOGY_HOST" ~/.ssh/known_hosts; then
-            ssh-keyscan -p $SSH_PORT $SYNOLOGY_HOST >> ~/.ssh/known_hosts
-          fi
+          mkdir -p ~/.ssh &&
+          if ! grep -q "$SYNOLOGY_HOST" ~/.ssh/known_hosts; then ssh-keyscan -p $SSH_PORT $SYNOLOGY_HOST >> ~/.ssh/known_hosts; fi
 
           echo "Connecting to Synology server..."
 
           # Use rsync to deploy the files
-          rsync -avz -e "sshpass -p $SYNOLOGY_PASSWORD ssh -p $SSH_PORT" dist/ $SYNOLOGY_USERNAME@$SYNOLOGY_HOST:$DEPLOY_PATH
+          rsync -avz --delete-after \
+            -e "sshpass -p $SYNOLOGY_PASSWORD ssh -o StrictHostKeyChecking=no -p $SSH_PORT" \
+            dist/ $SYNOLOGY_USERNAME@$SYNOLOGY_HOST:$DEPLOY_PATH
 
-      # 11. Shutdown Docker Compose environment
-      - name: Shut down Docker Compose environment
+      # 13. Shut Down Services After Tests (Cleanup)
+      - name: Shut Down Services After Tests (Cleanup)
         run: |
-          docker-compose down
+          docker-compose down || true &&
+          docker system prune --volumes --all --force || true &&
+          echo "Docker environment cleaned up."
