@@ -13,12 +13,8 @@ RUN npm install
 # 5. 애플리케이션 소스 코드 복사
 COPY . .
 
-# 6. 빌드 실행 (React 프로젝트 빌드)
-RUN npm run build
+# 6. 개발 서버 실행 (Vite)
+CMD ["npm", "run", "dev"]
 
-# 7. 정적 파일 제공 (React 앱 빌드 후)
-RUN npm install -g serve
-CMD ["serve", "-s", "build"]
-
-# 8. 포트 열기
-EXPOSE 5000
+# 7. 포트 열기
+EXPOSE 5173
