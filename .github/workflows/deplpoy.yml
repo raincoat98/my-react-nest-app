@@ -20,7 +20,7 @@ jobs:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: postgres
         ports:
-          - 5435:5432
+          - 5436:5432
         options: >-
           --health-cmd="pg_isready -U postgres"
           --health-timeout=30s
