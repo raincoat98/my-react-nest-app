@@ -1,4 +1,4 @@
-name: CI/CD for React & NestJS
+name: Deploy to Synology
 
 on:
   push:
@@ -6,46 +6,82 @@ on:
       - main
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:latest
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: postgres
-
     steps:
-      # Checkout code
-      - name: Checkout code
-        uses: actions/checkout@v2
+      # 1. Checkout repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      # Install Docker Compose (if not pre-installed)
-      - name: Install Docker Compose
-        run: |
-          if ! command -v docker-compose &> /dev/null; then
-            sudo curl -L "https://github.com/docker/compose/releases/download/v2.6.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose &&
-            sudo chmod +x /usr/local/bin/docker-compose;
-          fi
+      # 2. Setup Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
 
-      # Clean Up Docker Environment Before Build (Optional)
-      - name: Clean Up Docker Environment Before Build
-        run: |
-          docker-compose down || true &&
-          docker system prune --volumes --all --force || true &&
-          docker network prune --force || true
+      # 3. Install dependencies for backend
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: npm ci
 
-      # Build and Start Services with Docker Compose (Dynamic Ports)
-      - name: Build and Start Services with Docker Compose (Dynamic Ports)
-        run: |
-          sed -i 's/5436:/0:/g' docker-compose.yml &&
-          docker-compose up --build -d
+      # 4. Build backend
+      - name: Build backend
+        working-directory: ./backend
+        run: npm run build
 
-      # Shut Down Services After Tests (Cleanup)
-      - name: Shut Down Services After Tests (Cleanup)
+      # 5. Install dependencies for frontend
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      # 6. Build frontend
+      - name: Build frontend
+        working-directory: ./frontend
+        run: npm run build
+
+      # 7. Install sshpass & rsync (for deployment)
+      - name: Install sshpass & rsync
+        run: sudo apt-get install -y sshpass rsync
+
+      # 8. Deploy to Synology (using rsync)
+      - name: Deploy to Synology (using rsync)
+        env:
+          SYNOLOGY_HOST: ${{ secrets.SYNOLOGY_HOST }}
+          SYNOLOGY_USERNAME: ${{ secrets.SYNOLOGY_USERNAME }}
+          SYNOLOGY_PASSWORD: ${{ secrets.SYNOLOGY_PASSWORD }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
         run: |
-          docker-compose down || true &&
-          docker system prune --volumes --all --force || true &&
-          echo "Docker environment cleaned up."
+          # 호스트 키 자동 신뢰 추가
+          mkdir -p ~/.ssh
+          ssh-keyscan -p $SSH_PORT $SYNOLOGY_HOST >> ~/.ssh/known_hosts
+
+          echo "Deploying files to Synology server..."
+
+          # 백엔드 빌드 결과물 복사
+          rsync -avz --delete-after -e "sshpass -p $SYNOLOGY_PASSWORD ssh -p $SSH_PORT" backend/dist/ $SYNOLOGY_USERNAME@$SYNOLOGY_HOST:$DEPLOY_PATH/backend/
+
+          # 프론트엔드 빌드 결과물 복사
+          rsync -avz --delete-after -e "sshpass -p $SYNOLOGY_PASSWORD ssh -p $SSH_PORT" frontend/build/ $SYNOLOGY_USERNAME@$SYNOLOGY_HOST:$DEPLOY_PATH/frontend/
+
+          # docker-compose.yml 파일 복사 (루트에 위치한 경우)
+          rsync -avz --delete-after -e "sshpass -p $SYNOLOGY_PASSWORD ssh -p $SSH_PORT" docker-compose.yml $SYNOLOGY_USERNAME@$SYNOLOGY_HOST:$DEPLOY_PATH/
+
+      # 9. Run docker-compose on Synology
+      - name: Run docker-compose on Synology
+        env:
+          SYNOLOGY_HOST: ${{ secrets.SYNOLOGY_HOST }}
+          SYNOLOGY_USERNAME: ${{ secrets.SYNOLOGY_USERNAME }}
+          SYNOLOGY_PASSWORD: ${{ secrets.SYNOLOGY_PASSWORD }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+        run: |
+          echo "Running docker-compose on Synology server..."
+
+          sshpass -p "$SYNOLOGY_PASSWORD" ssh -o StrictHostKeyChecking=no -p "$SSH_PORT" "$SYNOLOGY_USERNAME@$SYNOLOGY_HOST" bash << 'EOF'
+            cd $DEPLOY_PATH
+            docker-compose down || true
+            docker-compose up --build -d
+          EOF
