@@ -1,18 +1,49 @@
-version: "3.7"
+version: "3.8"
 
 services:
   backend:
-    build: ./backend # Backend 디렉토리 빌드
+    build:
+      context: ./backend # 백엔드 디렉터리 경로
+      dockerfile: Dockerfile # Dockerfile이 다른 이름이면 명시적으로 추가
+    container_name: nestjs-backend
+    environment:
+      POSTGRES_HOST: postgres # PostgreSQL 컨테이너의 이름
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
     ports:
-      - "3000:3000" # Backend 포트
-    env_file:
-      - ./backend/.env # .env 파일로 환경 변수 로드
+      - "3000:3000" # 로컬 3000번 포트와 컨테이너 3000번 포트를 연결
     depends_on:
-      - frontend # frontend가 backend를 의존
+      - postgres # PostgreSQL이 먼저 시작되어야 함
+
+  postgres:
+    image: postgres:latest
+    container_name: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
 
   frontend:
-    build: ./frontend # Frontend 디렉토리 빌드
+    build:
+      context: ./frontend # 프론트엔드 디렉터리 경로
+      dockerfile: Dockerfile # Dockerfile이 다른 이름이면 명시적으로 추가
+    container_name: react-frontend
     ports:
-      - "3001:80" # Frontend 포트
-    depends_on:
-      - backend # backend가 frontend를 의존
+      - "5000:5000" # 로컬 5000번 포트와 컨테이너 5000번 포트를 연결
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

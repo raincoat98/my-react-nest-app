@@ -5,6 +5,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { LikesModule } from './likes/likes.module';
 import { Like } from './likes/entities/like.entity';
+import { DataSource, DataSourceOptions } from 'typeorm';
 
 // 데이터베이스 연결 정보:
 // - 호스트: ww57403.synology.me
@@ -29,10 +30,13 @@ import { Like } from './likes/entities/like.entity';
         entities: [Like],
         synchronize: true,
         logging: true,
-        dropSchema: false,
         autoLoadEntities: true,
       }),
       inject: [ConfigService],
+      dataSourceFactory: async (options: DataSourceOptions) => {
+        const dataSource = await new DataSource(options).initialize();
+        return dataSource;
+      },
     }),
     TypeOrmModule.forFeature([Like]),
     LikesModule,
