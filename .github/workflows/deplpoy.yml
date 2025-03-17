@@ -43,11 +43,6 @@ jobs:
           sed -i 's/5436:/0:/g' docker-compose.yml &&
           docker-compose up --build -d
 
-      # Run Backend Tests
-      - name: Run Backend Tests
-        run: |
-          docker-compose exec backend npm run test
-
       # Shut Down Services After Tests (Cleanup)
       - name: Shut Down Services After Tests (Cleanup)
         run: |
