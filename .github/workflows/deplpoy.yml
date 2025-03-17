@@ -14,12 +14,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Setup Node.js
-      - name: Setup Node.js
+      # 2. Setup Node.js for backend
+      - name: Setup Node.js (Backend)
         uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
+          cache-dependency-path: ./backend/package-lock.json
 
       # 3. Install dependencies for backend
       - name: Install backend dependencies
@@ -35,7 +36,15 @@ jobs:
         working-directory: ./backend
         run: npm run build
 
-      # 5. Install dependencies for frontend
+      # 5. Setup Node.js for frontend
+      - name: Setup Node.js (Frontend)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: ./frontend/package-lock.json
+
+      # 6. Install dependencies for frontend
       - name: Install frontend dependencies
         working-directory: ./frontend
         run: |
@@ -44,12 +53,12 @@ jobs:
           fi
           npm ci  # 의존성 설치
 
-      # 6. Build frontend
+      # 7. Build frontend
       - name: Build frontend
         working-directory: ./frontend
         run: npm run build
 
-      # 7. Install sshpass, rsync, and docker-compose (for deployment)
+      # 8. Install sshpass, rsync, and docker-compose (for deployment)
       - name: Install sshpass, rsync & docker-compose
         run: |
           sudo apt-get update
@@ -58,7 +67,7 @@ jobs:
           curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
           sudo chmod +x /usr/local/bin/docker-compose
 
-      # 8. Deploy to Synology (using rsync)
+      # 9. Deploy to Synology (using rsync)
       - name: Deploy to Synology (using rsync)
         env:
           SYNOLOGY_HOST: ${{ secrets.SYNOLOGY_HOST }}
@@ -68,21 +77,21 @@ jobs:
           SSH_PORT: ${{ secrets.SSH_PORT }}
         run: |
           # 호스트 키 자동 신뢰 추가
-          mkdir -p ~/.ssh
-          ssh-keyscan -p $SSH_PORT $SYNOLOGY_HOST >> ~/.ssh/known_hosts
+          mkdir -p ~/.ssh &&
+          ssh-keyscan -p $SSH_PORT $SYNOLOGY_HOST >> ~/.ssh/known_hosts &&
 
-          echo "Deploying files to Synology server..."
+          echo "Deploying files to Synology server..." &&
 
           # 백엔드 빌드 결과물 복사
-          rsync -avz --delete-after -e "sshpass -p $SYNOLOGY_PASSWORD ssh -p $SSH_PORT" backend/dist/ $SYNOLOGY_USERNAME@$SYNOLOGY_HOST:$DEPLOY_PATH/backend/
+          rsync -avz --delete-after -e "sshpass -p $SYNOLOGY_PASSWORD ssh -p $SSH_PORT" backend/dist/ $SYNOLOGY_USERNAME@$SYNOLOGY_HOST:$DEPLOY_PATH/backend/ &&
 
           # 프론트엔드 빌드 결과물 복사
-          rsync -avz --delete-after -e "sshpass -p $SYNOLOGY_PASSWORD ssh -p $SSH_PORT" frontend/build/ $SYNOLOGY_USERNAME@$SYNOLOGY_HOST:$DEPLOY_PATH/frontend/
+          rsync -avz --delete-after -e "sshpass -p $SYNOLOGY_PASSWORD ssh -p $SSH_PORT" frontend/build/ $SYNOLOGY_USERNAME@$SYNOLOGY_HOST:$DEPLOY_PATH/frontend/ &&
 
-          # docker-compose.yml 파일 복사
+          # docker-compose.yml 파일 복사 (루트에 위치한 경우)
           rsync -avz --delete-after -e "sshpass -p $SYNOLOGY_PASSWORD ssh -p $SSH_PORT" docker-compose.yml $SYNOLOGY_USERNAME@$SYNOLOGY_HOST:$DEPLOY_PATH/
 
-      # 9. Run docker-compose on Synology
+      # 10. Run docker-compose on Synology
       - name: Run docker-compose on Synology
         env:
           SYNOLOGY_HOST: ${{ secrets.SYNOLOGY_HOST }}
@@ -91,10 +100,10 @@ jobs:
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
           SSH_PORT: ${{ secrets.SSH_PORT }}
         run: |
-          echo "Running docker-compose on Synology server..."
+          echo "Running docker-compose on Synology server..." &&
 
           sshpass -p "$SYNOLOGY_PASSWORD" ssh -o StrictHostKeyChecking=no -p "$SSH_PORT" "$SYNOLOGY_USERNAME@$SYNOLOGY_HOST" bash << 'EOF'
-            cd $DEPLOY_PATH
-            docker-compose down || true
+            cd $DEPLOY_PATH &&
+            docker-compose down || true &&
             docker-compose up --build -d
           EOF
