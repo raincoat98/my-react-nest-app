@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
 
 jobs:
   build:
@@ -19,110 +16,39 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: postgres
-        ports:
-          - 5436:5432
-        options: >-
-          --health-cmd="pg_isready -U postgres"
-          --health-timeout=30s
-          --health-retries=3
-          --health-start-period=5s
 
     steps:
-      # 1. Checkout the code
+      # Checkout code
       - name: Checkout code
         uses: actions/checkout@v2
 
-      # 2. Install Docker Compose
+      # Install Docker Compose (if not pre-installed)
       - name: Install Docker Compose
         run: |
           if ! command -v docker-compose &> /dev/null; then
-            sudo curl -L "https://github.com/docker/compose/releases/download/v2.6.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-            sudo chmod +x /usr/local/bin/docker-compose
+            sudo curl -L "https://github.com/docker/compose/releases/download/v2.6.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose &&
+            sudo chmod +x /usr/local/bin/docker-compose;
           fi
-          docker-compose --version
 
-      # 3. Debug Port Usage (Optional)
-      - name: Debug Port Usage
-        run: |
-          echo "Checking if port 5436 is in use..."
-          sudo lsof -i :5436 || echo "Port 5436 is free"
-
-      # 4. Clean Up Docker Environment (Optional)
+      # Clean Up Docker Environment Before Build (Optional)
       - name: Clean Up Docker Environment Before Build
         run: |
-          docker-compose down || true
-          docker system prune -f || true
-          docker volume prune -f || true
-          docker network prune -f || true
+          docker-compose down || true &&
+          docker system prune --volumes --all --force || true &&
+          docker network prune --force || true
 
-      # 5. Set up Docker Buildx
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      # 6. Cache Docker layers
-      - name: Cache Docker layers
-        uses: actions/cache@v3
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-
-
-      # 7. Build Backend Docker image
-      - name: Build Backend Docker image
+      # Build and Start Services with Docker Compose (Dynamic Ports)
+      - name: Build and Start Services with Docker Compose (Dynamic Ports)
         run: |
-          docker-compose -f docker-compose.yml build backend
+          sed -i 's/5436:/0:/g' docker-compose.yml &&
+          docker-compose up --build -d
 
-      # 8. Build Frontend Docker image
-      - name: Build Frontend Docker image
-        run: |
-          docker-compose -f docker-compose.yml build frontend
-
-      # 9. Run Tests (Backend)
+      # Run Backend Tests
       - name: Run Backend Tests
         run: |
-          docker-compose up --build -d backend postgres &&
           docker-compose exec backend npm run test
 
-      # 10. Run Tests (Frontend)
-      - name: Run Frontend Tests
-        run: |
-          docker-compose up --build -d frontend &&
-          docker-compose exec frontend npm run test
-
-      # 11. Copy Files for Deployment (Optional Step)
-      - name: Copy Files for Deployment Preparation
-        run: |
-          if [ ! -d "dist" ]; then mkdir dist/; fi &&
-          cp -r backend/dist/* dist/ &&
-          cp -r frontend/build/* dist/
-
-      # 12. Deploy to Synology (using rsync)
-      - name: Deploy to Synology (using rsync)
-        env:
-          SYNOLOGY_HOST: ${{ secrets.SYNOLOGY_HOST }}
-          SYNOLOGY_USERNAME: ${{ secrets.SYNOLOGY_USERNAME }}
-          SYNOLOGY_PASSWORD: ${{ secrets.SYNOLOGY_PASSWORD }}
-          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
-          SSH_PORT: ${{ secrets.SSH_PORT }}
-        run: |
-          # Install necessary tools if not present
-          if ! command -v rsync &> /dev/null || ! command -v sshpass &> /dev/null; then
-            sudo apt-get update && sudo apt-get install -y sshpass rsync;
-          fi
-
-          # Add the host to known hosts to prevent SSH prompts
-          mkdir -p ~/.ssh &&
-          if ! grep -q "$SYNOLOGY_HOST" ~/.ssh/known_hosts; then ssh-keyscan -p $SSH_PORT $SYNOLOGY_HOST >> ~/.ssh/known_hosts; fi
-
-          echo "Connecting to Synology server..."
-
-          # Use rsync to deploy the files
-          rsync -avz --delete-after \
-            -e "sshpass -p $SYNOLOGY_PASSWORD ssh -o StrictHostKeyChecking=no -p $SSH_PORT" \
-            dist/ $SYNOLOGY_USERNAME@$SYNOLOGY_HOST:$DEPLOY_PATH
-
-      # 13. Shut Down Services After Tests (Cleanup)
+      # Shut Down Services After Tests (Cleanup)
       - name: Shut Down Services After Tests (Cleanup)
         run: |
           docker-compose down || true &&
