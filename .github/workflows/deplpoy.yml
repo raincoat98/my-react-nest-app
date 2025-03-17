@@ -67,7 +67,15 @@ jobs:
           curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
           sudo chmod +x /usr/local/bin/docker-compose
 
-      # 9. Deploy to Synology (using rsync)
+      # 9. Set up SSH key for secure connection to Synology
+      - name: Set up SSH key for deployment
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -p $SSH_PORT $SYNOLOGY_HOST >> ~/.ssh/known_hosts
+
+      # 10. Deploy to Synology (using rsync)
       - name: Deploy to Synology (using rsync)
         env:
           SYNOLOGY_HOST: ${{ secrets.SYNOLOGY_HOST }}
@@ -76,22 +84,18 @@ jobs:
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
           SSH_PORT: ${{ secrets.SSH_PORT }}
         run: |
-          # 호스트 키 자동 신뢰 추가
-          mkdir -p ~/.ssh &&
-          ssh-keyscan -p $SSH_PORT $SYNOLOGY_HOST >> ~/.ssh/known_hosts &&
-
           echo "Deploying files to Synology server..." &&
 
           # 백엔드 빌드 결과물 복사
-          rsync -avz --delete-after -e "sshpass -p $SYNOLOGY_PASSWORD ssh -p $SSH_PORT" backend/dist/ $SYNOLOGY_USERNAME@$SYNOLOGY_HOST:$DEPLOY_PATH/backend/ &&
+          rsync -avz --delete-after -e "ssh -p $SSH_PORT" backend/dist/ $SYNOLOGY_USERNAME@$SYNOLOGY_HOST:$DEPLOY_PATH/backend/ &&
 
           # 프론트엔드 빌드 결과물 복사
-          rsync -avz --delete-after -e "sshpass -p $SYNOLOGY_PASSWORD ssh -p $SSH_PORT" frontend/dist/ $SYNOLOGY_USERNAME@$SYNOLOGY_HOST:$DEPLOY_PATH/frontend/ &&
+          rsync -avz --delete-after -e "ssh -p $SSH_PORT" frontend/dist/ $SYNOLOGY_USERNAME@$SYNOLOGY_HOST:$DEPLOY_PATH/frontend/ &&
 
-          # docker-compose.yml 파일 복사 (루트에 위치한 경우)
-          rsync -avz --delete-after -e "sshpass -p $SYNOLOGY_PASSWORD ssh -p $SSH_PORT" docker-compose.yml $SYNOLOGY_USERNAME@$SYNOLOGY_HOST:$DEPLOY_PATH/
+          # docker-compose.yml 파일 복사
+          rsync -avz --delete-after -e "ssh -p $SSH_PORT" docker-compose.yml $SYNOLOGY_USERNAME@$SYNOLOGY_HOST:$DEPLOY_PATH/
 
-      # 10. Run docker-compose on Synology
+      # 11. Run docker-compose on Synology
       - name: Run docker-compose on Synology
         env:
           SYNOLOGY_HOST: ${{ secrets.SYNOLOGY_HOST }}
@@ -102,7 +106,7 @@ jobs:
         run: |
           echo "Running docker-compose on Synology server..." &&
 
-          sshpass -p "$SYNOLOGY_PASSWORD" ssh -o StrictHostKeyChecking=no -p "$SSH_PORT" "$SYNOLOGY_USERNAME@$SYNOLOGY_HOST" bash << 'EOF'
+          ssh -o StrictHostKeyChecking=no -p "$SSH_PORT" "$SYNOLOGY_USERNAME@$SYNOLOGY_HOST" bash << 'EOF'
             cd $DEPLOY_PATH &&
             docker-compose down || true &&
             docker-compose up --build -d
