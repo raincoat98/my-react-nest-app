@@ -32,11 +32,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      # 2. Set up Docker Buildx
+      # 2. Install Docker Compose
+      - name: Install Docker Compose
+        run: |
+          sudo curl -L "https://github.com/docker/compose/releases/download/v2.6.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+          sudo chmod +x /usr/local/bin/docker-compose
+          docker-compose --version
+
+      # 3. Set up Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      # 3. Cache Docker layers
+      # 4. Cache Docker layers
       - name: Cache Docker layers
         uses: actions/cache@v3
         with:
@@ -45,29 +52,36 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-
 
-      # 4. Build Backend Docker image
+      # 5. Build Backend Docker image
       - name: Build Backend Docker image
         run: |
           docker-compose -f docker-compose.yml build backend
 
-      # 5. Build Frontend Docker image
+      # 6. Build Frontend Docker image
       - name: Build Frontend Docker image
         run: |
           docker-compose -f docker-compose.yml build frontend
 
-      # 6. Run Tests (Backend)
+      # 7. Run Tests (Backend)
       - name: Run Backend Tests
         run: |
           docker-compose -f docker-compose.yml up -d backend
           docker-compose -f docker-compose.yml exec backend npm run test
 
-      # 7. Run Tests (Frontend)
+      # 8. Run Tests (Frontend)
       - name: Run Frontend Tests
         run: |
           docker-compose -f docker-compose.yml up -d frontend
           docker-compose -f docker-compose.yml exec frontend npm run test
 
-      # 8. Deploy to Synology (using rsync)
+      # 9. Copy Files for Deployment (Optional Step)
+      - name: Copy Files for Deployment Preparation
+        run: |
+          mkdir dist/
+          cp -r backend/dist/* dist/
+          cp -r frontend/build/* dist/
+
+      # 10. Deploy to Synology (using rsync)
       - name: Deploy to Synology (using rsync)
         env:
           SYNOLOGY_HOST: ${{ secrets.SYNOLOGY_HOST }}
@@ -77,7 +91,7 @@ jobs:
           SSH_PORT: ${{ secrets.SSH_PORT }}
         run: |
           # Install necessary tools
-          sudo apt-get install -y sshpass rsync
+          sudo apt-get update && sudo apt-get install -y sshpass rsync
 
           # Add the host to known hosts to prevent SSH prompts
           mkdir -p ~/.ssh
@@ -88,7 +102,7 @@ jobs:
           # Use rsync to deploy the files
           rsync -avz -e "sshpass -p $SYNOLOGY_PASSWORD ssh -p $SSH_PORT" dist/ $SYNOLOGY_USERNAME@$SYNOLOGY_HOST:$DEPLOY_PATH
 
-      # 9. Shutdown Docker Compose environment
-      - name: Shut down Docker Compose
+      # 11. Shutdown Docker Compose environment
+      - name: Shut down Docker Compose environment
         run: |
-          docker-compose -f docker-compose.yml down
+          docker-compose down
