@@ -1,0 +1,18 @@
+version: "3.7"
+
+services:
+  backend:
+    build: ./backend # Backend 디렉토리 빌드
+    ports:
+      - "3000:3000" # Backend 포트
+    env_file:
+      - ./backend/.env # .env 파일로 환경 변수 로드
+    depends_on:
+      - frontend # frontend가 backend를 의존
+
+  frontend:
+    build: ./frontend # Frontend 디렉토리 빌드
+    ports:
+      - "3001:80" # Frontend 포트
+    depends_on:
+      - backend # backend가 frontend를 의존
