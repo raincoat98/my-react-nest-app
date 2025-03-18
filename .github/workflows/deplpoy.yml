@@ -17,10 +17,11 @@ jobs:
         run: sudo apt-get install -y sshpass rsync
 
       - name: Set up SSH config
+        shell: /usr/bin/bash -e {0}
         run: |
           mkdir -p ~/.ssh
           echo -e "Host *\n  StrictHostKeyChecking no\n" > ~/.ssh/config
-          ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SYNOLOGY_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SYNOLOGY_HOST }} >> ~/.ssh/known_hosts || true
 
       - name: Deploy to Synology (using sshpass)
         env:
