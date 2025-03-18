@@ -13,20 +13,28 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Set up SSH
-        uses: webfactory/ssh-agent@v0.5.3
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      - name: Install sshpass & rsync
+        run: sudo apt-get install -y sshpass rsync
 
-      - name: Copy SSH config
+      - name: Set up SSH config
+
         run: |
           mkdir -p ~/.ssh
           echo -e "Host *\n  StrictHostKeyChecking no\n" > ~/.ssh/config
+          ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SYNOLOGY_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Clone repository and deploy to Synology
+      - name: Deploy to Synology (using sshpass)
+        env:
+          SYNOLOGY_HOST: ${{ secrets.SYNOLOGY_HOST }}
+          SYNOLOGY_USERNAME: ${{ secrets.SYNOLOGY_USERNAME }}
+          SYNOLOGY_PASSWORD: ${{ secrets.SYNOLOGY_PASSWORD }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
         run: |
-          ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SYNOLOGY_USERNAME }}@${{ secrets.SYNOLOGY_HOST }} << 'EOF'
-            cd ${{ secrets.DEPLOY_PATH }} || cd $(dirname ${{ secrets.DEPLOY_PATH }})  # 기존 폴더로 이동 (없으면 상위 폴더로 이동)
+          # SSH 접속 및 Docker Compose 실행
+          sshpass -p ${{ secrets.SYNOLOGY_PASSWORD }} ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SYNOLOGY_USERNAME }}@$SYNOLOGY_HOST << 'EOF'
+            # 폴더가 없으면 상위 폴더로 이동
+            cd $DEPLOY_PATH || cd $(dirname $DEPLOY_PATH) || exit 0  # 경로가 없으면 상위 폴더로 이동
             git pull origin main || git clone https://github.com/raincoat98/my-react-nest-app.git
             cd my-react-nest-app
             sudo docker-compose down
