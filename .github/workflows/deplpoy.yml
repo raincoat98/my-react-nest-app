@@ -46,29 +46,6 @@ jobs:
           # SSH 접속 및 Docker Compose 실행
           sshpass -p ${{ secrets.SYNOLOGY_PASSWORD }} ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SYNOLOGY_USERNAME }}@${{ secrets.SYNOLOGY_HOST }} 'bash -s' << 'EOF'
 
-            # 1. TMPDIR 설정 (libz.so.1 오류 해결)
-            export TMPDIR=/volume1/docker_tmp
-            mkdir -p $TMPDIR
-            chmod 1777 $TMPDIR
-
-            # 2. Docker Compose 설치 (이미 설치되어 있다면 스킵)
-            if ! [ -x "$(command -v docker-compose)" ]; then
-              echo "Installing Docker Compose..."
-              sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-              sudo chmod +x /usr/local/bin/docker-compose
-            else
-              echo "Docker Compose is already installed."
-            fi
-
-            # 3. zlib 설치 (libz.so.1 오류 해결)
-            if ! dpkg -l | grep -q "zlib1g"; then
-              echo "Installing zlib1g..."
-              sudo apt-get update
-              sudo apt-get install -y zlib1g
-            else
-              echo "zlib1g is already installed."
-            fi
-
             # 4. 작업 디렉토리로 이동
             cd /volume1/web/
 
