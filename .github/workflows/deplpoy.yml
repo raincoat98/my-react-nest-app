@@ -90,7 +90,7 @@ jobs:
           echo "    StrictHostKeyChecking no" >> ~/.ssh/config
 
       # 10. Deploy to Synology (using rsync)
-      - name: Deploy to Synology (using rsync)
+      - name: Deploy to Synology (using rsync with sshpass)
         env:
           SYNOLOGY_HOST: ${{ secrets.SYNOLOGY_HOST }}
           SYNOLOGY_USERNAME: ${{ secrets.SYNOLOGY_USERNAME }}
@@ -101,13 +101,13 @@ jobs:
           echo "Deploying files to Synology server..." &&
 
           # 백엔드 빌드 결과물 복사
-          rsync -avz --delete-after --port=$RSYNC_PORT backend/dist/ $SYNOLOGY_USERNAME@$SYNOLOGY_HOST:$DEPLOY_PATH/backend/ &&
+          rsync -avz -e "sshpass -p $SYNOLOGY_PASSWORD ssh -p $RSYNC_PORT" backend/dist/ $SYNOLOGY_USERNAME@$SYNOLOGY_HOST:$DEPLOY_PATH/backend/ &&
 
           # 프론트엔드 빌드 결과물 복사
-          rsync -avz --delete-after --port=$RSYNC_PORT frontend/dist/ $SYNOLOGY_USERNAME@$SYNOLOGY_HOST:$DEPLOY_PATH/frontend/ &&
+          rsync -avz -e "sshpass -p $SYNOLOGY_PASSWORD ssh -p $RSYNC_PORT" frontend/dist/ $SYNOLOGY_USERNAME@$SYNOLOGY_HOST:$DEPLOY_PATH/frontend/ &&
 
           # docker-compose.yml 파일 복사
-          rsync -avz --delete-after --port=$RSYNC_PORT docker-compose.yml $SYNOLOGY_USERNAME@$SYNOLOGY_HOST:$DEPLOY_PATH/
+          rsync -avz -e "sshpass -p $SYNOLOGY_PASSWORD ssh -p $RSYNC_PORT" docker-compose.yml $SYNOLOGY_USERNAME@$SYNOLOGY_HOST:$DEPLOY_PATH/
 
       # 11. Run docker-compose on Synology
       - name: Run docker-compose on Synology
