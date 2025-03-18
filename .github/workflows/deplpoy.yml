@@ -69,23 +69,25 @@ jobs:
 
       # 9. Set up SSH key for secure connection to Synology
       - name: Set up SSH key for deployment
+        env:
+          SYNOLOGY_HOST: ${{ secrets.SYNOLOGY_HOST }}
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" | tr -d '\r' > ~/.ssh/id_rsa
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-          # SSH 포트 설정
+          # SSH 포트를 설정합니다
           SSH_PORT=${{ secrets.SSH_PORT }}
           if [ -z "$SSH_PORT" ]; then
-            SSH_PORT=22
+            SSH_PORT=22  # SSH_PORT가 없으면 기본 포트 22를 사용
           fi
 
-          # SSH 키 확인 및 known_hosts 추가
+          # SSH 키를 확인하고 known_hosts에 추가합니다.
           ssh-keyscan -p $SSH_PORT $SYNOLOGY_HOST >> ~/.ssh/known_hosts
 
-          # 권한 확인 (디버깅용)
-          ls -l ~/.ssh
-          ssh -v -i ~/.ssh/id_rsa -p $SSH_PORT $SYNOLOGY_USERNAME@$SYNOLOGY_HOST "echo 'SSH 연결 확인됨!'"
+          # 호스트 키를 확인하지 않도록 설정
+          echo "Host $SYNOLOGY_HOST" >> ~/.ssh/config
+          echo "    StrictHostKeyChecking no" >> ~/.ssh/config
 
       # 10. Deploy to Synology (using rsync)
       - name: Deploy to Synology (using rsync)
