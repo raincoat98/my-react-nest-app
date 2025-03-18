@@ -38,10 +38,19 @@ jobs:
               echo "Docker Compose is already installed."
             fi
 
-            # 2. 작업 디렉토리로 이동
+            # 2. zlib 설치 (libz.so.1 오류 해결)
+            if ! dpkg -l | grep -q "zlib1g"; then
+              echo "Installing zlib1g..."
+              sudo apt-get update
+              sudo apt-get install -y zlib1g
+            else
+              echo "zlib1g is already installed."
+            fi
+
+            # 3. 작업 디렉토리로 이동
             cd /volume1/web/
 
-            # 3. git clone 또는 pull
+            # 4. git clone 또는 pull
             if [ -d "my-react-nest-app" ]; then
               cd my-react-nest-app
               git pull origin main
@@ -50,7 +59,7 @@ jobs:
               cd my-react-nest-app
             fi
 
-            # 4. Docker Compose 실행
+            # 5. Docker Compose 실행
             if [ -f "docker-compose.yml" ]; then
               docker-compose down || true
               docker-compose up --build -d
