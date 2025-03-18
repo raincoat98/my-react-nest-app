@@ -21,6 +21,7 @@ jobs:
           mkdir -p ~/.ssh
           echo -e "Host *\n  StrictHostKeyChecking no\n" > ~/.ssh/config
           ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SYNOLOGY_HOST }} >> ~/.ssh/known_hosts
+
       - name: Deploy to Synology (using sshpass)
         env:
           SYNOLOGY_HOST: ${{ secrets.SYNOLOGY_HOST }}
@@ -28,10 +29,14 @@ jobs:
           # SSH 접속 및 Docker Compose 실행
           sshpass -p ${{ secrets.SYNOLOGY_PASSWORD }} ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SYNOLOGY_USERNAME }}@${{ secrets.SYNOLOGY_HOST }} 'bash -s' << 'EOF'
 
-            # Install docker-compose (if it's not already installed)
-            curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-            sudo chmod +x /usr/local/bin/docker-compose
-
+            # 1. Docker Compose 설치 (이미 설치되어 있다면 스킵)
+            if ! [ -x "$(command -v docker-compose)" ]; then
+              echo "Installing Docker Compose..."
+              sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+              sudo chmod +x /usr/local/bin/docker-compose
+            else
+              echo "Docker Compose is already installed."
+            fi
 
             # 2. 작업 디렉토리 생성 및 이동
             mkdir -p ${{ secrets.DEPLOY_PATH }}
@@ -48,10 +53,11 @@ jobs:
 
             # 4. Docker Compose 실행
             if [ -f "docker-compose.yml" ]; then
-              echo ${{ secrets.SYNOLOGY_PASSWORD }} | sudo -S docker-compose down
+              echo ${{ secrets.SYNOLOGY_PASSWORD }} | sudo -S docker-compose down || true
               echo ${{ secrets.SYNOLOGY_PASSWORD }} | sudo -S docker-compose up --build -d
             else
               echo "Error: docker-compose.yml not found"
               exit 1
             fi
+
           EOF
