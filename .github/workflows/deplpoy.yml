@@ -29,20 +29,28 @@ jobs:
           # SSH 접속 및 Docker Compose 실행
           sshpass -p ${{ secrets.SYNOLOGY_PASSWORD }} ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SYNOLOGY_USERNAME }}@${{ secrets.SYNOLOGY_HOST }} << 'EOF'
             # 1. git 설치 여부 확인 및 설치
-            if ! command -v git &> /dev/null
-            then
-                echo "git could not be found, installing..."
-                sudo apt-get update && sudo apt-get install -y git
+            sudo -S apt-get update <<< ${{ secrets.SYNOLOGY_PASSWORD }}
+            sudo -S apt-get install -y git <<< ${{ secrets.SYNOLOGY_PASSWORD }}
+
+            # 2. 작업 디렉토리 생성 및 이동
+            mkdir -p ${{ secrets.DEPLOY_PATH }}
+            cd ${{ secrets.DEPLOY_PATH }}
+
+            # 3. git clone 또는 pull
+            if [ -d "my-react-nest-app" ]; then
+              cd my-react-nest-app
+              sudo -S git pull origin main <<< ${{ secrets.SYNOLOGY_PASSWORD }}
+            else
+              sudo -S git clone https://github.com/raincoat98/my-react-nest-app.git <<< ${{ secrets.SYNOLOGY_PASSWORD }}
+              cd my-react-nest-app
             fi
 
-            # 2. 폴더가 없으면 상위 폴더로 이동
-            cd ${{ secrets.DEPLOY_PATH }} || cd $(dirname ${{ secrets.DEPLOY_PATH }}) || exit 0
-
-            # 3. git pull 또는 git clone
-            git pull origin main || git clone https://github.com/raincoat98/my-react-nest-app.git
-            cd my-react-nest-app
-
             # 4. Docker Compose 실행
-            sudo -S docker-compose down <<< ${{ secrets.SYNOLOGY_PASSWORD }}
-            sudo -S docker-compose up --build -d <<< ${{ secrets.SYNOLOGY_PASSWORD }}  # 비밀번호 자동 입력
+            if [ -f "docker-compose.yml" ]; then
+              sudo -S docker-compose down <<< ${{ secrets.SYNOLOGY_PASSWORD }}
+              sudo -S docker-compose up --build -d <<< ${{ secrets.SYNOLOGY_PASSWORD }}
+            else
+              echo "Error: docker-compose.yml not found"
+              exit 1
+            fi
           EOF
