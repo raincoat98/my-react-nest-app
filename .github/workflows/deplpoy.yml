@@ -120,7 +120,7 @@ jobs:
         run: |
           echo "Running docker-compose on Synology server..." &&
 
-          ssh -o StrictHostKeyChecking=no -p "$SSH_PORT" "$SYNOLOGY_USERNAME@$SYNOLOGY_HOST" bash << 'EOF'
+          sshpass -p "$SYNOLOGY_PASSWORD" ssh -o StrictHostKeyChecking=no -p "$SSH_PORT" "$SYNOLOGY_USERNAME@$SYNOLOGY_HOST" bash << 'EOF'
             cd $DEPLOY_PATH &&
             docker-compose down || true &&
             docker-compose up --build -d
