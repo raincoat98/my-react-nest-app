@@ -69,6 +69,8 @@ jobs:
 
       # 9. Set up SSH key for secure connection to Synology
       - name: Set up SSH key for deployment
+        env:
+          SYNOLOGY_HOST: ${{ secrets.SYNOLOGY_HOST }}
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
