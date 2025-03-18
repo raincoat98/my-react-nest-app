@@ -17,10 +17,27 @@ jobs:
         run: sudo apt-get install -y sshpass rsync
 
       - name: Set up SSH config
+        env:
+          SYNOLOGY_HOST: ${{ secrets.SYNOLOGY_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
           mkdir -p ~/.ssh
-          echo -e "Host *\n  StrictHostKeyChecking no\n" > ~/.ssh/config
-          ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SYNOLOGY_HOST }} >> ~/.ssh/known_hosts
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+          # SSH 포트를 설정합니다
+          SSH_PORT=${{ secrets.SSH_PORT }}
+          if [ -z "$SSH_PORT" ]; then
+            SSH_PORT=22  # SSH_PORT가 없으면 기본 포트 22를 사용
+          fi
+
+          # SSH 키를 확인하고 known_hosts에 추가합니다.
+          ssh-keyscan -p $SSH_PORT $SYNOLOGY_HOST >> ~/.ssh/known_hosts
+
+          # 호스트 키를 확인하지 않도록 설정
+          echo "Host $SYNOLOGY_HOST" >> ~/.ssh/config
+          echo "    StrictHostKeyChecking no" >> ~/.ssh/config
 
       - name: Deploy to Synology (using sshpass)
         env:
