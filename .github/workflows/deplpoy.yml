@@ -40,7 +40,7 @@ jobs:
             if ! command -v docker-compose &> /dev/null
             then
               echo "Docker Compose could not be found, installing..."
-              echo ${{ secrets.SYNOLOGY_PASSWORD }} | sudo -S curl -L "https://github.com/docker/compose/releases/download/$(curl -s https://api.github.com/repos/docker/compose/releases/latest | jq -r .tag_name)/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+              echo ${{ secrets.SYNOLOGY_PASSWORD }} | sudo -S curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
               echo ${{ secrets.SYNOLOGY_PASSWORD }} | sudo -S chmod +x /usr/local/bin/docker-compose
             fi
 
@@ -59,8 +59,8 @@ jobs:
 
             # 4. Docker Compose 실행
             if [ -f "docker-compose.yml" ]; then
-              echo ${{ secrets.SYNOLOGY_PASSWORD }} | sudo -S docker-compose down
-              echo ${{ secrets.SYNOLOGY_PASSWORD }} | sudo -S docker-compose up --build -d
+              echo ${{ secrets.SYNOLOGY_PASSWORD }} | sudo -S /usr/local/bin/docker-compose down
+              echo ${{ secrets.SYNOLOGY_PASSWORD }} | sudo -S /usr/local/bin/docker-compose up --build -d
             else
               echo "Error: docker-compose.yml not found"
               exit 1
