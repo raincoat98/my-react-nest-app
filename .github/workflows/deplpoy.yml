@@ -23,9 +23,11 @@ jobs:
           ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SYNOLOGY_HOST }} >> ~/.ssh/known_hosts
 
       - name: Deploy to Synology (using sshpass)
+        env:
+          SYNOLOGY_HOST: ${{ secrets.SYNOLOGY_HOST }}
         run: |
           # SSH 접속 및 Docker Compose 실행
-          sshpass -p ${{ secrets.SYNOLOGY_PASSWORD }} ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SYNOLOGY_USERNAME }}@$SYNOLOGY_HOST << 'EOF'
+          sshpass -p ${{ secrets.SYNOLOGY_PASSWORD }} ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SYNOLOGY_USERNAME }}@${{ secrets.SYNOLOGY_HOST }} << 'EOF'
             # 1. git 설치 여부 확인 및 설치
             if ! command -v git &> /dev/null
             then
