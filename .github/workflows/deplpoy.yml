@@ -96,19 +96,18 @@ jobs:
           SYNOLOGY_USERNAME: ${{ secrets.SYNOLOGY_USERNAME }}
           SYNOLOGY_PASSWORD: ${{ secrets.SYNOLOGY_PASSWORD }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
-          SSH_PORT: ${{ secrets.SSH_PORT }}
           RSYNC_PORT: ${{ secrets.RSYNC_PORT }}
         run: |
           echo "Deploying files to Synology server..." &&
 
           # 백엔드 빌드 결과물 복사
-          rsync  -avz --delete-after -e "ssh -p $SSH_PORT" backend/dist/ $SYNOLOGY_USERNAME@$SYNOLOGY_HOST:$DEPLOY_PATH/backend/ &&
+          rsync -avz --delete-after --port=$RSYNC_PORT backend/dist/ $SYNOLOGY_USERNAME@$SYNOLOGY_HOST:$DEPLOY_PATH/backend/ &&
 
           # 프론트엔드 빌드 결과물 복사
-          rsync -avz --delete-after -e "ssh -p $SSH_PORT" frontend/dist/ $SYNOLOGY_USERNAME@$SYNOLOGY_HOST:$DEPLOY_PATH/frontend/ &&
+          rsync -avz --delete-after --port=$RSYNC_PORT frontend/dist/ $SYNOLOGY_USERNAME@$SYNOLOGY_HOST:$DEPLOY_PATH/frontend/ &&
 
           # docker-compose.yml 파일 복사
-          rsync -avz --delete-after -e "ssh -p $SSH_PORT" docker-compose.yml $SYNOLOGY_USERNAME@$SYNOLOGY_HOST:$DEPLOY_PATH/
+          rsync -avz --delete-after --port=$RSYNC_PORT docker-compose.yml $SYNOLOGY_USERNAME@$SYNOLOGY_HOST:$DEPLOY_PATH/
 
       # 11. Run docker-compose on Synology
       - name: Run docker-compose on Synology
