@@ -61,21 +61,16 @@ jobs:
       # 8. Install sshpass, rsync & docker-compose (for deployment)
       - name: Install sshpass, rsync & docker-compose
         run: |
-          # Update the system (this is usually not required on Synology, but you can try)
-          sudo synopkg update
+          sudo apt-get install -y sshpass rsync
 
-          # Install sshpass and rsync using ipkg (Synology's package manager)
-          sudo ipkg update
-          sudo ipkg install sshpass rsync
+           # Install docker-compose (if it's not already installed)
+           curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+           sudo chmod +x /usr/local/bin/docker-compose
 
-          # Install docker-compose (if it's not already installed)
-          curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-          sudo chmod +x /usr/local/bin/docker-compose
-
-          # Check if the tools were installed correctly
-          sshpass -V
-          rsync --version
-          docker-compose --version
+           # Check if the tools were installed correctly
+           sshpass -V
+           rsync --version
+           docker-compose --version
 
       # 9. Set up SSH key for secure connection to Synology
       - name: Set up SSH key for deployment
