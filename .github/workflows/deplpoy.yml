@@ -1,132 +1,34 @@
-name: Deploy to Synology
+name: Deploy to Synology Server
 
 on:
   push:
     branches:
-      - main
+      - main # main 브랜치에 푸시할 때마다 배포
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout repository
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-      # 2. Setup Node.js for backend
-      - name: Setup Node.js (Backend)
-        uses: actions/setup-node@v4
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.5.3
         with:
-          node-version: "20"
-          cache: "npm"
-          cache-dependency-path: ./backend/package-lock.json
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      # 3. Install dependencies for backend
-      - name: Install backend dependencies
-        working-directory: ./backend
-        run: |
-          if [ ! -f "package-lock.json" ]; then
-            npm install --package-lock-only  # package-lock.json이 없으면 생성
-          fi
-          npm ci  # 의존성 설치
-
-      # 4. Build backend
-      - name: Build backend
-        working-directory: ./backend
-        run: npm run build
-
-      # 5. Setup Node.js for frontend
-      - name: Setup Node.js (Frontend)
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
-          cache-dependency-path: ./frontend/package-lock.json
-
-      # 6. Install dependencies for frontend
-      - name: Install frontend dependencies
-        working-directory: ./frontend
-        run: |
-          if [ ! -f "package-lock.json" ]; then
-            npm install --package-lock-only  # package-lock.json이 없으면 생성
-          fi
-          npm ci  # 의존성 설치
-
-      # 7. Build frontend
-      - name: Build frontend
-        working-directory: ./frontend
-        run: npm run build
-
-      # 8. Install sshpass, rsync & docker-compose (for deployment)
-      - name: Install sshpass, rsync & docker-compose
-        run: |
-          sudo apt-get install -y sshpass rsync
-
-           # Install docker-compose (if it's not already installed)
-           curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-           sudo chmod +x /usr/local/bin/docker-compose
-
-           # Check if the tools were installed correctly
-           sshpass -V
-           rsync --version
-           docker-compose --version
-
-      # 9. Set up SSH key for secure connection to Synology
-      - name: Set up SSH key for deployment
-        env:
-          SYNOLOGY_HOST: ${{ secrets.SYNOLOGY_HOST }}
+      - name: Copy SSH config
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
+          echo -e "Host *\n  StrictHostKeyChecking no\n" > ~/.ssh/config
 
-          # SSH 포트를 설정합니다
-          SSH_PORT=${{ secrets.SSH_PORT }}
-          if [ -z "$SSH_PORT" ]; then
-            SSH_PORT=22  # SSH_PORT가 없으면 기본 포트 22를 사용
-          fi
-
-          # SSH 키를 확인하고 known_hosts에 추가합니다.
-          ssh-keyscan -p $SSH_PORT $SYNOLOGY_HOST >> ~/.ssh/known_hosts
-
-          # 호스트 키를 확인하지 않도록 설정
-          echo "Host $SYNOLOGY_HOST" >> ~/.ssh/config
-          echo "    StrictHostKeyChecking no" >> ~/.ssh/config
-
-      # 10. Deploy to Synology (using rsync)
-      - name: Deploy to Synology (using rsync with sshpass)
-        env:
-          SYNOLOGY_HOST: ${{ secrets.SYNOLOGY_HOST }}
-          SYNOLOGY_USERNAME: ${{ secrets.SYNOLOGY_USERNAME }}
-          SYNOLOGY_PASSWORD: ${{ secrets.SYNOLOGY_PASSWORD }}
-          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
-          RSYNC_PORT: ${{ secrets.RSYNC_PORT }}
+      - name: Clone repository and deploy to Synology
         run: |
-          echo "Deploying files to Synology server..." &&
-
-          # 백엔드 빌드 결과물 복사
-          rsync -avz -e "sshpass -p $SYNOLOGY_PASSWORD ssh -p $RSYNC_PORT" backend/dist/ $SYNOLOGY_USERNAME@$SYNOLOGY_HOST:$DEPLOY_PATH/backend/ &&
-
-          # 프론트엔드 빌드 결과물 복사
-          rsync -avz -e "sshpass -p $SYNOLOGY_PASSWORD ssh -p $RSYNC_PORT" frontend/dist/ $SYNOLOGY_USERNAME@$SYNOLOGY_HOST:$DEPLOY_PATH/frontend/ &&
-
-          # docker-compose.yml 파일 복사
-          rsync -avz -e "sshpass -p $SYNOLOGY_PASSWORD ssh -p $RSYNC_PORT" docker-compose.yml $SYNOLOGY_USERNAME@$SYNOLOGY_HOST:$DEPLOY_PATH/
-
-      # 11. Run docker-compose on Synology
-      - name: Run docker-compose on Synology
-        env:
-          SYNOLOGY_HOST: ${{ secrets.SYNOLOGY_HOST }}
-          SYNOLOGY_USERNAME: ${{ secrets.SYNOLOGY_USERNAME }}
-          SYNOLOGY_PASSWORD: ${{ secrets.SYNOLOGY_PASSWORD }}
-          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
-          SSH_PORT: ${{ secrets.SSH_PORT }}
-        run: |
-          echo "Running docker-compose on Synology server..." &&
-
-          sshpass -p "$SYNOLOGY_PASSWORD" ssh -o StrictHostKeyChecking=no -p "$SSH_PORT" "$SYNOLOGY_USERNAME@$SYNOLOGY_HOST" bash << 'EOF'
-            cd $DEPLOY_PATH &&
-            docker-compose down || true &&
-            docker-compose up --build -d
+          ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SYNOLOGY_USERNAME }}@${{ secrets.SYNOLOGY_HOST }} << 'EOF'
+            cd ${{ secrets.DEPLOY_PATH }} || cd $(dirname ${{ secrets.DEPLOY_PATH }})  # 기존 폴더로 이동 (없으면 상위 폴더로 이동)
+            git pull origin main || git clone https://github.com/raincoat98/my-react-nest-app.git
+            cd my-react-nest-app
+            sudo docker-compose down
+            sudo docker-compose up --build -d  # Docker Compose로 백그라운드에서 실행
           EOF
