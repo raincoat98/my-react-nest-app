@@ -17,6 +17,9 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
   logger.log('Application starting...');
 
+  // 전역 프리픽스 설정
+  app.setGlobalPrefix('api');
+
   // CORS 설정
   const corsOrigins = configService
     .get<string>('CORS_ORIGINS')
@@ -60,7 +63,7 @@ async function bootstrap() {
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document);
+  SwaggerModule.setup('api-docs', app, document);
 
   const port = configService.get<number>('PORT', 3000);
   console.log(`Application is running on port ${port}`);
