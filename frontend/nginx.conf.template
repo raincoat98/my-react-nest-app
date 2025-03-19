@@ -1,6 +1,6 @@
 server {
     listen 80;
-    server_name ${NGINX_HOST};
+    server_name "${NGINX_HOST}";
 
     root /usr/share/nginx/html;
     index index.html;
@@ -39,7 +39,7 @@ server {
 
     # API 프록시 설정
     location /api {
-        proxy_pass ${API_URL};
+        proxy_pass "${API_URL}";
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -55,6 +55,6 @@ server {
         proxy_read_timeout 60s;
 
         # CORS 설정
-        add_header 'Access-Control-Allow-Origin' '${CORS_ORIGIN}';
+        add_header 'Access-Control-Allow-Origin' "${CORS_ORIGIN}";
     }
 } 

@@ -8,9 +8,9 @@ services:
       args:
         - REACT_APP_NAME=Wonkook-prod
         - REACT_APP_TITLE=Kiwi-prod
-        - NGINX_HOST=${NGINX_HOST}
-        - API_URL=${API_URL}
-        - CORS_ORIGIN=${CORS_ORIGIN}
+        - NGINX_HOST=ww57403.synology.me
+        - API_URL=https://ww57403.synology.me:4001
+        - CORS_ORIGIN=https://ww57403.synology.me:4001
     ports:
       - "4000:80"
     volumes:
