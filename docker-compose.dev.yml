@@ -25,7 +25,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile.dev
     ports:
-      - "3000:3000"
+      - "5001:3000"
     volumes:
       - ./backend/src:/app/src:ro
       - /app/node_modules
