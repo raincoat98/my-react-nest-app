@@ -1,9 +1,9 @@
-name: Deploy to Synology Server
+name: Deploy to Production
 
 on:
   push:
     branches:
-      - main # main 브랜치에 푸시할 때마다 배포
+      - main
 
 jobs:
   deploy:
@@ -26,30 +26,27 @@ jobs:
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-          # SSH 포트를 설정합니다
           SSH_PORT=${{ secrets.SSH_PORT }}
           if [ -z "$SSH_PORT" ]; then
-            SSH_PORT=22  # SSH_PORT가 없으면 기본 포트 22를 사용
+            SSH_PORT=22
           fi
 
-          # SSH 키를 확인하고 known_hosts에 추가합니다.
           ssh-keyscan -p $SSH_PORT $SYNOLOGY_HOST >> ~/.ssh/known_hosts
 
-          # 호스트 키를 확인하지 않도록 설정
           echo "Host $SYNOLOGY_HOST" >> ~/.ssh/config
           echo "    StrictHostKeyChecking no" >> ~/.ssh/config
 
-      - name: Deploy to Synology (using sshpass)
+      - name: Deploy to Production
         env:
           SYNOLOGY_HOST: ${{ secrets.SYNOLOGY_HOST }}
+          NODE_ENV: production
         run: |
-          # SSH 접속 및 Docker Compose 실행
           sshpass -p ${{ secrets.SYNOLOGY_PASSWORD }} ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SYNOLOGY_USERNAME }}@${{ secrets.SYNOLOGY_HOST }} 'bash -s' << 'EOF'
 
-            # 4. 작업 디렉토리로 이동
+            # 작업 디렉토리로 이동
             cd /volume1/web/
 
-            # 5. git clone 또는 pull
+            # git pull
             if [ -d "my-react-nest-app" ]; then
               cd my-react-nest-app
               git pull origin main
@@ -58,20 +55,32 @@ jobs:
               cd my-react-nest-app
             fi
 
-            # docker-compose 설치
-           sudo curl -L "https://github.com/docker/compose/releases/download/v2.25.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-            sudo chmod +x /usr/local/bin/docker-compose
-            sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
-            echo "docker-compose --version"
-            docker-compose --version
+            # docker-compose 설치 확인 및 업데이트
+            if ! command -v docker-compose &> /dev/null; then
+              sudo curl -L "https://github.com/docker/compose/releases/download/v2.25.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+              sudo chmod +x /usr/local/bin/docker-compose
+              sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+            fi
 
-            # 6. Docker Compose 실행
-            if [ -f "docker-compose.yml" ]; then
-              docker-compose down || true
-              docker-compose up --build -d
+            # 기존 컨테이너 및 이미지 정리
+            docker-compose down --rmi all --volumes --remove-orphans || true
+            docker system prune -f
+
+            # 프로덕션 환경 변수 설정
+            export NODE_ENV=production
+
+            # Docker Compose 실행
+            if [ -f "docker-compose.production.yml" ]; then
+              docker-compose -f docker-compose.production.yml up --build -d
             else
-              echo "Error: docker-compose.yml not found"
+              echo "Error: docker-compose.production.yml not found"
               exit 1
             fi
+
+            # 배포 상태 확인
+            echo "Checking deployment status..."
+            sleep 10
+            docker-compose ps
+            docker-compose logs --tail=50
 
           EOF
