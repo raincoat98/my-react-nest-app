@@ -11,13 +11,15 @@ services:
       - ./frontend/src:/app/src:ro
       - /app/node_modules
     env_file:
-      - ./frontend/.env.local
+      - ./frontend/.env.development
     environment:
       - NODE_ENV=development
       - HOST=0.0.0.0
       - WDS_SOCKET_PORT=0
     depends_on:
       - backend
+    networks:
+      - app-network
 
   backend:
     container_name: backend-dev
@@ -33,23 +35,31 @@ services:
       - ./backend/.env
     environment:
       - NODE_ENV=development
+      - POSTGRES_PORT=5432
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: always
 
   postgres:
-    image: postgres:17
+    image: postgres:15
     container_name: postgres-dev
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: postgres
+    env_file:
+      - ./backend/.env
     ports:
-      - "5436:5432"
+      - "5434:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - app-network
     restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 networks:
   app-network:
