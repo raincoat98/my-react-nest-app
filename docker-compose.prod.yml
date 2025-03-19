@@ -1,0 +1,75 @@
+version: "3"
+services:
+  frontend:
+    container_name: frontend-prod
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        - REACT_APP_NAME=Wonkook-prod
+        - REACT_APP_TITLE=Kiwi-prod
+    ports:
+      - "4000:80"
+    volumes:
+      - nginx_logs:/var/log/nginx
+    env_file:
+      - ./frontend/.env.production
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+  backend:
+    container_name: backend-prod
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./backend/.env.production
+    environment:
+      - NODE_ENV=production
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: always
+    networks:
+      - app-network
+
+  postgres:
+    image: postgres:17
+    container_name: postgres-prod
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  nginx_logs:
+  postgres_data:
+
+networks:
+  app-network:
+    driver: bridge
