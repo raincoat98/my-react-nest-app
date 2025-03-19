@@ -12,6 +12,7 @@ services:
       - "4000:80"
     volumes:
       - nginx_logs:/var/log/nginx
+      - ./frontend/nginx.conf.template:/etc/nginx/templates/default.conf.template
     env_file:
       - ./frontend/.env.production
     environment:
