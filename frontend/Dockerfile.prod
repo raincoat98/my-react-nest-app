@@ -2,14 +2,6 @@
 FROM --platform=linux/amd64 node:20-alpine AS build
 WORKDIR /app
 
-# 빌드 시 사용할 환경변수 설정
-ARG REACT_APP_NAME
-ARG REACT_APP_TITLE
-
-# 환경 변수 설정
-ENV NODE_ENV=production
-ENV REACT_APP_NAME=${REACT_APP_NAME}
-ENV REACT_APP_TITLE=${REACT_APP_TITLE}
 
 # package.json과 package-lock.json 복사
 COPY package*.json ./

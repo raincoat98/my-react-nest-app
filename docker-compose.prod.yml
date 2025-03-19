@@ -5,12 +5,6 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.prod
-      args:
-        - REACT_APP_NAME=Wonkook-prod
-        - REACT_APP_TITLE=Kiwi-prod
-        - NGINX_HOST=ww57403.synology.me
-        - API_URL=http://ww57403.synology.me:4001
-        - CORS_ORIGIN=http://ww57403.synology.me:4001
     ports:
       - "4000:80"
     volumes:
@@ -32,13 +26,6 @@ services:
       - "4001:3000"
     env_file:
       - ./backend/.env.production
-    environment:
-      - NODE_ENV=production
-      - POSTGRES_HOST=postgres
-      - POSTGRES_PORT=5432
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=postgres
     depends_on:
       postgres:
         condition: service_healthy
