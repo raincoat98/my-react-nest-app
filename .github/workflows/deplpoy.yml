@@ -40,6 +40,8 @@ jobs:
         env:
           SYNOLOGY_HOST: ${{ secrets.SYNOLOGY_HOST }}
           NODE_ENV: production
+          FRONTEND_ENV: ${{ secrets.FRONTEND_ENV }}
+          BACKEND_ENV: ${{ secrets.BACKEND_ENV }}
         run: |
           sshpass -p ${{ secrets.SYNOLOGY_PASSWORD }} ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SYNOLOGY_USERNAME }}@${{ secrets.SYNOLOGY_HOST }} 'bash -s' << 'EOF'
 
@@ -54,6 +56,11 @@ jobs:
               git clone https://github.com/raincoat98/my-react-nest-app.git
               cd my-react-nest-app
             fi
+
+            # 환경 변수 파일 생성
+            mkdir -p frontend backend
+            echo "$FRONTEND_ENV" > frontend/.env.production
+            echo "$BACKEND_ENV" > backend/.env.production
 
             # docker-compose 설치 확인 및 업데이트
             if ! command -v docker-compose &> /dev/null; then
