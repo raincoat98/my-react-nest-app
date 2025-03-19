@@ -70,10 +70,10 @@ jobs:
             export NODE_ENV=production
 
             # Docker Compose 실행
-            if [ -f "docker-compose.production.yml" ]; then
-              docker-compose -f docker-compose.production.yml up --build -d
+            if [ -f "docker-compose.prod.yml" ]; then
+              docker-compose -f docker-compose.prod.yml up --build -d
             else
-              echo "Error: docker-compose.production.yml not found"
+              echo "Error: docker-compose.prod.yml not found"
               exit 1
             fi
 
