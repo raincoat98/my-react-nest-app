@@ -87,7 +87,7 @@ jobs:
             # 배포 상태 확인
             echo "Checking deployment status..."
             sleep 10
-            docker-compose ps
-            docker-compose logs --tail=50
+            docker-compose -f docker-compose.prod.yml ps
+            docker-compose -f docker-compose.prod.yml logs --tail=50
 
           EOF
