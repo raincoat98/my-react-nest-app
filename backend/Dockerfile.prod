@@ -2,6 +2,11 @@
 FROM --platform=linux/amd64 node:20-alpine AS builder
 WORKDIR /app
 
+# npm 설정
+RUN npm config set fetch-retries 5 \
+    && npm config set fetch-retry-mintimeout 20000 \
+    && npm config set fetch-retry-maxtimeout 120000
+
 # package.json과 package-lock.json 복사
 COPY package*.json ./
 
@@ -17,6 +22,11 @@ RUN npm run build
 # 프로덕션 스테이지
 FROM --platform=linux/amd64 node:20-alpine
 WORKDIR /app
+
+# npm 설정
+RUN npm config set fetch-retries 5 \
+    && npm config set fetch-retry-mintimeout 20000 \
+    && npm config set fetch-retry-maxtimeout 120000
 
 # 프로덕션 환경 설정
 ENV NODE_ENV=production
