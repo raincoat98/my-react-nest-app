@@ -18,7 +18,8 @@ COPY package*.json ./
 RUN rm -rf node_modules package-lock.json && \
     npm install --platform=linux --arch=x64 && \
     npm install @rollup/rollup-linux-x64-musl && \
-    npm install @esbuild/linux-x64
+    npm install @esbuild/linux-x64 && \
+    npm install -g typescript
 
 # 소스 코드 복사
 COPY . .

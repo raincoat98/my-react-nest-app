@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import axios from "axios";
+import api from "../api/axios";
 
 interface LikeButtonProps {
   onLike: () => Promise<void>;
@@ -14,7 +14,7 @@ const LikeButton: React.FC<LikeButtonProps> = ({ onLike }) => {
 
     try {
       setIsLoading(true);
-      const response = await axios.post("http://localhost:3000/likes", {
+      const response = await api.post("/likes", {
         liked: true,
       });
 
