@@ -43,8 +43,7 @@ jobs:
           FRONTEND_ENV: ${{ secrets.FRONTEND_ENV }}
           BACKEND_ENV: ${{ secrets.BACKEND_ENV }}
         run: |
-          sshpass -p ${{ secrets.SYNOLOGY_PASSWORD }} ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SYNOLOGY_USERNAME }}@${{ secrets.SYNOLOGY_HOST }} 'bash -s' << 'EOF'
-
+          sshpass -p ${{ secrets.SYNOLOGY_PASSWORD }} ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SYNOLOGY_USERNAME }}@${{ secrets.SYNOLOGY_HOST }} "bash -s" << 'EOSSH'
             # 작업 디렉토리로 이동
             cd /volume1/web/
 
@@ -59,8 +58,19 @@ jobs:
 
             # 환경 변수 파일 생성
             mkdir -p frontend backend
-            echo "$FRONTEND_ENV" > frontend/.env.production
-            echo "$BACKEND_ENV" > backend/.env.production
+          EOSSH
+
+          # 환경 변수 파일을 직접 전송
+          sshpass -p ${{ secrets.SYNOLOGY_PASSWORD }} ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SYNOLOGY_USERNAME }}@${{ secrets.SYNOLOGY_HOST }} "cat > /volume1/web/my-react-nest-app/frontend/.env.production" << 'EOF'
+          ${{ secrets.FRONTEND_ENV }}
+          EOF
+
+          sshpass -p ${{ secrets.SYNOLOGY_PASSWORD }} ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SYNOLOGY_USERNAME }}@${{ secrets.SYNOLOGY_HOST }} "cat > /volume1/web/my-react-nest-app/backend/.env.production" << 'EOF'
+          ${{ secrets.BACKEND_ENV }}
+          EOF
+
+          sshpass -p ${{ secrets.SYNOLOGY_PASSWORD }} ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SYNOLOGY_USERNAME }}@${{ secrets.SYNOLOGY_HOST }} "bash -s" << 'EOSSH'
+            cd /volume1/web/my-react-nest-app
 
             # docker-compose 설치 확인 및 업데이트
             if ! command -v docker-compose &> /dev/null; then
@@ -89,5 +99,4 @@ jobs:
             sleep 10
             docker-compose -f docker-compose.prod.yml ps
             docker-compose -f docker-compose.prod.yml logs --tail=50
-
-          EOF
+          EOSSH
