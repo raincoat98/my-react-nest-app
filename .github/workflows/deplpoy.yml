@@ -72,8 +72,6 @@ jobs:
           sshpass -p ${{ secrets.SYNOLOGY_PASSWORD }} ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SYNOLOGY_USERNAME }}@${{ secrets.SYNOLOGY_HOST }} "bash -s" << 'EOSSH'
             cd /volume1/web/my-react-nest-app
 
-            # docker-entrypoint.sh 실행 권한 부여
-            chmod +x frontend/docker-entrypoint.sh
 
             # docker-compose 설치 확인 및 업데이트
             if ! command -v docker-compose &> /dev/null; then
@@ -91,6 +89,10 @@ jobs:
 
             # Docker Compose 실행
             if [ -f "docker-compose.prod.yml" ]; then
+
+              # docker-entrypoint.sh 실행 권한 부여
+              sudo chmod +x frontend/docker-entrypoint.sh
+
               docker-compose -f docker-compose.prod.yml up --build -d
             else
               echo "Error: docker-compose.prod.yml not found"
